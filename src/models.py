@@ -26,7 +26,7 @@ class Encoder(nn.Module):
         outputs, (hidden, cell) = self.lstm(x)
         return (hidden, cell)
 
-
+ 
 class Decoder(nn.Module):
     def __init__(
         self, input_size=4096, hidden_size=1024, output_size=4096, num_layers=2
@@ -89,7 +89,8 @@ class LSTMVAE(nn.Module):
 
     def reparametize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
-        noise = torch.randn_like(std).to(self.device)
+        # tensor of the same size of input filled wtih standard normal random numbers 
+        noise = torch.randn_like(std).to(self.device) 
 
         z = mu + noise * std
         return z
@@ -112,9 +113,13 @@ class LSTMVAE(nn.Module):
         # decode latent space to input space
         z = z.repeat(1, seq_len, 1)
         z = z.view(batch_size, seq_len, self.latent_size).to(self.device)
+        
+        # TODO: investigate the correct shape when self.num_layers != 1
+        # add a new dimension
+        h_ = h_.repeat(self.num_layers, 1, 1)
 
         # initialize hidden state
-        hidden = (h_.contiguous(), h_.contiguous())
+        hidden = (h_.contiguous(), h_.contiguous()) # returns a contiguous in memory tensor
         reconstruct_output, hidden = self.lstm_dec(z, hidden)
 
         x_hat = reconstruct_output
@@ -147,7 +152,7 @@ class LSTMVAE(nn.Module):
 
         kld_loss = torch.mean(
             -0.5 * torch.sum(1 + log_var - mu**2 - log_var.exp(), dim=1), dim=0
-        )
+        ) 
 
         loss = recons_loss + kld_weight * kld_loss
         return {
